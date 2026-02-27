@@ -7,12 +7,18 @@
     "dev": "tauri dev",
     "dev:vite": "vite",
     "build": "vite build",
+    "release:verify": "npm run build && cargo check --manifest-path src-tauri/Cargo.toml",
+    "release:check-versions": "node -e \"const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')).version; const tauri = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')).version; if (pkg !== tauri) { console.error(`Version mismatch: package.json=${pkg}, src-tauri/tauri.conf.json=${tauri}`); process.exit(1); } console.log(`Version OK: ${pkg}`);\"",
+    "release:local": "npm run release:check-versions && npm run release:verify && npm run tauri -- build",
+    "release": "npm run release:check-versions && node -e \"const { execSync } = require('child_process'); const fs = require('fs'); const v = JSON.parse(fs.readFileSync('package.json', 'utf8')).version; execSync('git tag v' + v, { stdio: 'inherit' }); execSync('git push origin v' + v, { stdio: 'inherit' });\"",
     "tauri": "tauri"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-shell": "^2",
+    "@tauri-apps/plugin-updater": "^2.10.0",
     "solid-js": "^1.9"
   },
   "devDependencies": {

@@ -21,6 +21,7 @@ src-tauri/icons/ios/
 .env
 .env.*
 !.env.example
+~/.tauri/
 
 # Editor
 .vscode/settings.json

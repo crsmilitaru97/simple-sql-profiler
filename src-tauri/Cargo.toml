@@ -21,3 +21,5 @@ tokio-util = { version = "0.7", features = ["compat"] }
 uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
 keyring = { version = "3", features = ["windows-native"] }
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
