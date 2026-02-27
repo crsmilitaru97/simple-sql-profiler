@@ -5,6 +5,8 @@ interface Props {
   queries: QueryEvent[];
   selectedId: string | null;
   autoScroll: boolean;
+  connected: boolean;
+  capturing: boolean;
   onSelect: (id: string) => void;
 }
 
@@ -12,8 +14,6 @@ export default function QueryFeed(props: Props) {
   let containerRef: HTMLDivElement | undefined;
 
   createEffect(() => {
-    // Re-run when queries length changes
-    const _len = props.queries.length;
     if (props.autoScroll && containerRef) {
       requestAnimationFrame(() => {
         containerRef!.scrollTop = containerRef!.scrollHeight;
@@ -46,34 +46,43 @@ export default function QueryFeed(props: Props) {
   return (
     <div
       ref={containerRef}
-      class="flex-1 overflow-auto min-h-0"
+      class="flex-1 flex flex-col overflow-auto min-h-0"
     >
       {/* Header */}
-      <div class="sticky top-0 z-10 grid grid-cols-[60px_80px_70px_100px_1fr_80px_80px_80px] gap-px bg-slate-800 border-b border-slate-700 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-        <div class="px-2 py-1.5 bg-slate-900">#</div>
-        <div class="px-2 py-1.5 bg-slate-900">Time</div>
-        <div class="px-2 py-1.5 bg-slate-900">Session</div>
-        <div class="px-2 py-1.5 bg-slate-900">Database</div>
-        <div class="px-2 py-1.5 bg-slate-900">SQL Text</div>
-        <div class="px-2 py-1.5 bg-slate-900 text-right">Duration</div>
-        <div class="px-2 py-1.5 bg-slate-900 text-right">CPU</div>
-        <div class="px-2 py-1.5 bg-slate-900 text-right">Reads</div>
+      <div class="sticky top-0 z-10 grid grid-cols-[60px_80px_70px_100px_1fr_80px_80px_80px] gap-px bg-slate-700 border-b border-slate-700 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+        <div class="px-2 py-1.5 bg-slate-800">#</div>
+        <div class="px-2 py-1.5 bg-slate-800">Time</div>
+        <div class="px-2 py-1.5 bg-slate-800">Session</div>
+        <div class="px-2 py-1.5 bg-slate-800">Database</div>
+        <div class="px-2 py-1.5 bg-slate-800">SQL Text</div>
+        <div class="px-2 py-1.5 bg-slate-800 text-right">Duration</div>
+        <div class="px-2 py-1.5 bg-slate-800 text-right">CPU</div>
+        <div class="px-2 py-1.5 bg-slate-800 text-right">Reads</div>
       </div>
 
       {/* Rows */}
       {props.queries.length === 0 ? (
-        <div class="flex items-center justify-center h-48 text-sm text-slate-600">
-          No queries captured yet. Connect to a server and start capturing.
+        <div class="flex-1 flex flex-col items-center justify-center text-slate-600 gap-4">
+          <i class="fa-solid fa-database text-4xl opacity-20" />
+          <div class="flex flex-col items-center gap-1">
+            <span class="text-sm">No queries captured yet.</span>
+            <span class="text-[11px] opacity-60">
+              {!props.connected
+                ? "Connect to a server to begin."
+                : !props.capturing
+                  ? "Press Start to begin capturing events."
+                  : "Waiting for database activity..."}
+            </span>
+          </div>
         </div>
       ) : (
         <For each={props.queries}>
           {(query, idx) => (
             <div
-              class={`grid grid-cols-[60px_80px_70px_100px_1fr_80px_80px_80px] gap-px cursor-pointer border-b border-slate-800/50 text-xs transition-colors ${
-                props.selectedId === query.id
-                  ? "bg-blue-600/15 text-slate-100"
-                  : "hover:bg-slate-800/50 text-slate-300"
-              }`}
+              class={`grid grid-cols-[60px_80px_70px_100px_1fr_80px_80px_80px] gap-px cursor-pointer border-b border-slate-800/50 text-xs transition-colors ${props.selectedId === query.id
+                ? "bg-blue-600/15 text-slate-100"
+                : "hover:bg-slate-800/50 text-slate-300"
+                }`}
               onClick={() => props.onSelect(query.id)}
             >
               <div class="px-2 py-1.5 text-slate-500 tabular-nums">
@@ -88,11 +97,10 @@ export default function QueryFeed(props: Props) {
               </div>
               <div class="px-2 py-1.5 truncate font-mono text-[11px]">
                 <span
-                  class={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${
-                    query.event_status === "running"
-                      ? "bg-emerald-500"
-                      : "bg-slate-600"
-                  }`}
+                  class={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${query.event_status === "running"
+                    ? "bg-emerald-500"
+                    : "bg-slate-600"
+                    }`}
                 />
                 {truncateSql(query.current_statement || query.sql_text)}
               </div>

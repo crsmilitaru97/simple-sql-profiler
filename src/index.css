@@ -1,65 +1,111 @@
 @import "tailwindcss";
 
 @theme {
-  --font-mono: "Cascadia Code", "Fira Code", "JetBrains Mono", ui-monospace,
-    monospace;
+  --font-mono: "Cascadia Code", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
 }
 
+/* --- Base --- */
 body {
-  @apply bg-slate-950 text-slate-100 font-sans m-0 overflow-hidden select-none;
+  @apply bg-slate-900 text-slate-100 font-sans m-0 overflow-hidden select-none;
 }
 
 #root {
   @apply h-screen flex flex-col;
 }
 
-::-webkit-scrollbar {
-  @apply w-2 h-2;
+button {
+  @apply cursor-pointer transition-colors duration-200;
 }
 
-::-webkit-scrollbar-track {
-  @apply bg-slate-900;
+button:disabled {
+  @apply cursor-default opacity-40;
 }
 
-::-webkit-scrollbar-thumb {
-  @apply bg-slate-700 rounded-full;
+*[data-tauri-drag-region] {
+  app-region: drag;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-600;
+/* --- Title Bar --- */
+.titlebar {
+  @apply flex items-center justify-between bg-slate-800/60 select-none shrink-0 relative z-[100];
+  height: 32px;
 }
 
-/* Custom checkbox */
+.titlebar-drag {
+  @apply flex-1 flex items-center h-full px-3;
+}
+
+.titlebar-title {
+  @apply flex items-center gap-2 text-xs text-slate-400;
+}
+
+.titlebar-title i {
+  @apply text-blue-400 text-[10px];
+}
+
+.titlebar-action {
+  @apply flex items-center gap-1.5 px-2.5 py-1 text-[11px] text-slate-400 enabled:hover:bg-white/10 enabled:hover:text-slate-200 rounded transition-colors;
+  app-region: no-drag;
+}
+
+.titlebar-btn {
+  @apply flex items-center justify-center w-[46px] h-full text-slate-400 enabled:hover:bg-white/10 enabled:hover:text-slate-200 transition-colors;
+  app-region: no-drag;
+}
+
+.titlebar-btn--close:enabled:hover {
+  @apply bg-[#e81123] text-white;
+}
+
+/* --- Global Components & Utilities --- */
+
+/* Form Elements */
+.input-base {
+  @apply w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all;
+}
+
+.label-base {
+  @apply block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider;
+}
+
+.label-row {
+  @apply flex items-center justify-between mb-1.5;
+}
+
+.label-sub {
+  @apply text-[11px] text-slate-500 font-medium uppercase tracking-wider transition-colors;
+}
+
+label:hover .label-sub {
+  @apply text-slate-300;
+}
+
+/* Custom Checkbox */
 input[type="checkbox"].custom-checkbox {
-  @apply appearance-none w-4 h-4 rounded border border-slate-600 bg-slate-800
-    cursor-pointer relative shrink-0 transition-colors;
+  @apply appearance-none w-4 h-4 rounded border border-slate-600 bg-slate-800/80 cursor-pointer relative shrink-0 transition-all duration-150;
 }
 
 input[type="checkbox"].custom-checkbox:hover {
-  @apply border-slate-500;
+  @apply border-slate-400 bg-slate-800;
 }
 
 input[type="checkbox"].custom-checkbox:focus-visible {
-  @apply outline-none ring-1 ring-blue-500 border-blue-500;
+  @apply outline-none ring-2 ring-blue-500/30 border-blue-500;
 }
 
 input[type="checkbox"].custom-checkbox:checked {
-  @apply bg-blue-600 border-blue-600;
+  @apply bg-blue-500 border-blue-500 shadow-[0_0_8px_rgba(59, 130, 246, 0.3)];
 }
 
 input[type="checkbox"].custom-checkbox:checked::after {
   content: "";
   @apply absolute inset-0 block;
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E")
-    no-repeat center / 12px 12px;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E") no-repeat center / 12px 12px;
 }
 
-/* Custom dropdown */
+/* Dropdown */
 .dropdown-trigger {
-  @apply w-full flex items-center justify-between gap-2
-    px-3 py-2 bg-slate-800 border border-slate-700 rounded
-    text-sm text-slate-100 text-left
-    cursor-pointer transition-colors;
+  @apply w-full flex items-center justify-between gap-2 px-3 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-slate-100 text-left cursor-pointer transition-colors;
 }
 
 .dropdown-trigger:hover {
@@ -83,10 +129,7 @@ input[type="checkbox"].custom-checkbox:checked::after {
 }
 
 .dropdown-menu {
-  @apply absolute z-10 left-0 right-0
-    bg-slate-800 border border-blue-500 border-t-0
-    rounded-b shadow-xl
-    py-1 max-h-48 overflow-y-auto;
+  @apply absolute z-10 left-0 right-0 bg-slate-800 border border-blue-500 border-t-0 rounded-b shadow-xl py-1 max-h-48 overflow-y-auto;
   animation: dropdown-in 150ms ease-out;
   transform-origin: top center;
 }
@@ -96,6 +139,7 @@ input[type="checkbox"].custom-checkbox:checked::after {
     opacity: 0;
     transform: scaleY(0.9) translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: scaleY(1) translateY(0);
@@ -114,3 +158,19 @@ input[type="checkbox"].custom-checkbox:checked::after {
   @apply bg-blue-600/30 text-blue-300;
 }
 
+/* --- Scrollbars --- */
+::-webkit-scrollbar {
+  @apply w-2 h-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-600;
+}

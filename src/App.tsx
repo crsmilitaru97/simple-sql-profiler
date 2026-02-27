@@ -3,6 +3,7 @@ import { createStore, produce } from "solid-js/store";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import type { QueryEvent, ProfilerStatus, ConnectionConfig } from "./lib/types.ts";
+import TitleBar from "./components/TitleBar.tsx";
 import ConnectionForm from "./components/ConnectionForm.tsx";
 import Toolbar from "./components/Toolbar.tsx";
 import QueryFeed from "./components/QueryFeed.tsx";
@@ -18,7 +19,11 @@ export default function App() {
   const [selectedId, setSelectedId] = createSignal<string | null>(null);
   const [filterText, setFilterText] = createSignal("");
   const [showConnection, setShowConnection] = createSignal(true);
-  const [autoScroll, setAutoScroll] = createSignal(true);
+  const [autoScroll, setAutoScroll] = createSignal(localStorage.getItem("auto-scroll") !== "false");
+
+  createEffect(() => {
+    localStorage.setItem("auto-scroll", String(autoScroll()));
+  });
 
   const selectedQuery = () => queries.find((q) => q.id === selectedId()) ?? null;
 
@@ -103,86 +108,56 @@ export default function App() {
   }
 
   return (
-    <div class="h-screen flex flex-col bg-slate-950">
-      {/* Title Bar */}
-      <header class="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-800" data-tauri-drag-region>
-        <h1 class="text-sm font-semibold text-slate-200 tracking-wide">
-          Simple SQL Profiler
-        </h1>
-        <div class="flex items-center gap-2 text-xs text-slate-500">
-          <span>MSSQL</span>
-          {status().connected && (
-            <span class="flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Connected
-            </span>
-          )}
-        </div>
-      </header>
-
-      {/* Connection Form (overlay) */}
-      {showConnection() && (
-        <ConnectionForm
-          onConnect={handleConnect}
-          onClose={() => status().connected && setShowConnection(false)}
-          error={status().error}
-          connected={status().connected}
-        />
-      )}
-
-      {/* Toolbar */}
-      <Toolbar
-        connected={status().connected}
-        capturing={status().capturing}
-        queryCount={queries.length}
-        filterText={filterText()}
-        autoScroll={autoScroll()}
-        onStartCapture={handleStartCapture}
-        onStopCapture={handleStopCapture}
-        onClear={handleClear}
-        onDisconnect={handleDisconnect}
-        onFilterChange={setFilterText}
+    <div class="h-screen flex flex-col bg-slate-900">
+      <TitleBar
         onToggleConnection={() => setShowConnection((s) => !s)}
-        onToggleAutoScroll={() => setAutoScroll((s) => !s)}
+        disabled={showConnection()}
       />
 
-      {/* Main Content */}
-      <div class="flex-1 flex flex-col min-h-0">
-        <QueryFeed
-          queries={filteredQueries()}
-          selectedId={selectedId()}
-          autoScroll={autoScroll()}
-          onSelect={(id) => setSelectedId(id === selectedId() ? null : id)}
-        />
-
-        {selectedQuery() && (
-          <QueryDetail
-            query={selectedQuery()!}
-            onClose={() => setSelectedId(null)}
+      <div class="flex-1 flex flex-col min-h-0 relative">
+        {/* Connection Form (overlay) */}
+        {showConnection() && (
+          <ConnectionForm
+            onConnect={handleConnect}
+            onClose={() => status().connected && setShowConnection(false)}
+            error={status().error}
+            connected={status().connected}
           />
         )}
-      </div>
 
-      {/* Status Bar */}
-      <footer class="flex items-center justify-between px-3 py-1 bg-slate-900 border-t border-slate-800 text-xs text-slate-500">
-        <div class="flex items-center gap-3">
-          {status().capturing ? (
-            <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              Capturing
-            </span>
-          ) : (
-            <span>Idle</span>
-          )}
-          <span>{queries.length} events</span>
-          {filterText() && (
-            <span>{filteredQueries().length} shown</span>
+        {/* Toolbar */}
+        <Toolbar
+          connected={status().connected}
+          capturing={status().capturing}
+          queryCount={queries.length}
+          filterText={filterText()}
+          autoScroll={autoScroll()}
+          onStartCapture={handleStartCapture}
+          onStopCapture={handleStopCapture}
+          onClear={handleClear}
+          onFilterChange={setFilterText}
+          onToggleAutoScroll={() => setAutoScroll((s) => !s)}
+        />
+
+        {/* Main Content */}
+        <div class="flex-1 flex flex-col min-h-0">
+          <QueryFeed
+            queries={filteredQueries()}
+            selectedId={selectedId()}
+            autoScroll={autoScroll()}
+            connected={status().connected}
+            capturing={status().capturing}
+            onSelect={(id) => setSelectedId(id === selectedId() ? null : id)}
+          />
+
+          {selectedQuery() && (
+            <QueryDetail
+              query={selectedQuery()!}
+              onClose={() => setSelectedId(null)}
+            />
           )}
         </div>
-        {status().error && (
-          <span class="text-red-400 truncate max-w-md">{status().error}</span>
-        )}
-      </footer>
+      </div>
     </div>
   );
 }
