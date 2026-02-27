@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --font-mono: "Cascadia Code", "Fira Code", "JetBrains Mono", ui-monospace,
+    monospace;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 font-sans m-0 overflow-hidden select-none;
+}
+
+#root {
+  @apply h-screen flex flex-col;
+}
+
+::-webkit-scrollbar {
+  @apply w-2 h-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-600;
+}
