@@ -6,6 +6,11 @@
       "type": "shell",
       "command": "npm run dev",
       "isBackground": true,
+      "options": {
+        "env": {
+          "CARGO_HTTP_CHECK_REVOKE": "false"
+        }
+      },
       "problemMatcher": {
         "pattern": {
           "regexp": "^$"
@@ -18,8 +23,7 @@
       },
       "presentation": {
         "reveal": "silent",
-        "panel": "dedicated",
-        "label": "Vite Dev Server"
+        "panel": "dedicated"
       }
     }
   ]
