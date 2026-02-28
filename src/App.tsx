@@ -2,7 +2,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { check } from "@tauri-apps/plugin-updater";
+import { check, type Update } from "@tauri-apps/plugin-updater";
 import { Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import AboutDialog from "./components/AboutDialog.tsx";
@@ -13,6 +13,7 @@ import QueryDetail from "./components/QueryDetail.tsx";
 import QueryFeed from "./components/QueryFeed.tsx";
 import TitleBar from "./components/TitleBar.tsx";
 import Toolbar from "./components/Toolbar.tsx";
+import UpdateDialog from "./components/UpdateDialog.tsx";
 import { evaluateFilter, type AdvancedFilterCondition } from "./lib/advancedFilters.ts";
 import type { ConnectionConfig, ProfilerStatus, QueryEvent } from "./lib/types.ts";
 
@@ -65,6 +66,7 @@ export default function App() {
     message: null,
     tone: "info",
   });
+  const [updateAvailable, setUpdateAvailable] = createSignal<Update | null>(null);
   const [advancedFilters, setAdvancedFilters] = createSignal<AdvancedFilterCondition[]>(
     (() => {
       try {
@@ -274,24 +276,31 @@ export default function App() {
         return;
       }
 
-      const shouldInstall = window.confirm(
-        `Version ${update.version} is available (current ${update.currentVersion}). Install now?`
-      );
-      if (!shouldInstall) {
-        setUpdateStatus({
-          checking: false,
-          message: `Update ${update.version} is available.`,
-          tone: "info",
-        });
-        return;
-      }
-
+      setUpdateAvailable(update);
+    } catch (error) {
+      const { message, configurationIssue, tone } = formatUpdaterError(error);
+      const shouldHideMessage = !manual && configurationIssue;
       setUpdateStatus({
-        checking: true,
-        message: `Downloading and installing ${update.version}...`,
-        tone: "info",
+        checking: false,
+        message: shouldHideMessage ? null : message,
+        tone: shouldHideMessage ? "info" : tone,
       });
 
+      if (!manual && !configurationIssue) {
+        console.error("Automatic update check failed:", error);
+      }
+    }
+  }
+
+  async function handleInstallUpdate(update: Update) {
+    setUpdateAvailable(null);
+    setUpdateStatus({
+      checking: true,
+      message: `Downloading and installing ${update.version}...`,
+      tone: "info",
+    });
+
+    try {
       await update.downloadAndInstall();
       setUpdateStatus({
         checking: true,
@@ -311,17 +320,22 @@ export default function App() {
       }
     } catch (error) {
       const { message, configurationIssue, tone } = formatUpdaterError(error);
-      const shouldHideMessage = !manual && configurationIssue;
       setUpdateStatus({
         checking: false,
-        message: shouldHideMessage ? null : message,
-        tone: shouldHideMessage ? "info" : tone,
+        message,
+        tone,
       });
-
-      if (!manual && !configurationIssue) {
-        console.error("Automatic update check failed:", error);
-      }
+      console.error("Update install failed:", error);
     }
+  }
+
+  function handleCancelUpdate(update: Update) {
+    setUpdateAvailable(null);
+    setUpdateStatus({
+      checking: false,
+      message: `Update ${update.version} is available.`,
+      tone: "info",
+    });
   }
 
   function handleClear() {
@@ -368,6 +382,17 @@ export default function App() {
             onClose={() => setShowAdvancedFilter(false)}
           />
         )}
+
+        <Show when={updateAvailable()} keyed>
+          {(update) => (
+            <UpdateDialog
+              version={update.version}
+              currentVersion={update.currentVersion}
+              onInstall={() => void handleInstallUpdate(update)}
+              onCancel={() => handleCancelUpdate(update)}
+            />
+          )}
+        </Show>
 
         {/* Toolbar */}
         <Toolbar
