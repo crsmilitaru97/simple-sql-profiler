@@ -170,6 +170,12 @@ struct ActiveTrace {
     trace_file: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct QueryResultData {
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<serde_json::Value>>,
+}
+
 pub enum ProfilerCommand {
     Connect {
         config: ConnectionConfig,
@@ -183,6 +189,10 @@ pub enum ProfilerCommand {
     },
     StopCapture {
         reply: oneshot::Sender<Result<(), String>>,
+    },
+    ExecuteQuery {
+        sql: String,
+        reply: oneshot::Sender<Result<QueryResultData, String>>,
     },
 }
 
@@ -337,6 +347,14 @@ async fn profiler_loop(
                     let _ = stop_and_close_trace(c, trace.trace_id).await;
                 }
                 active_trace = None;
+            }
+            ProfilerCommand::ExecuteQuery { sql, reply } => {
+                let Some(client) = control_client.as_mut() else {
+                    let _ = reply.send(Err("Not connected".into()));
+                    continue;
+                };
+                let result = execute_user_query(client, &sql).await;
+                let _ = reply.send(result);
             }
         }
     }
@@ -582,4 +600,94 @@ fn is_transient_trace_file_error(message: &str) -> bool {
     let lower = message.to_lowercase();
     lower.contains("code: 19049")
         || (lower.contains("there are no more files") && lower.contains("fn_trace_gettable"))
+}
+
+async fn execute_user_query(
+    client: &mut SqlClient,
+    sql: &str,
+) -> Result<QueryResultData, String> {
+    let stream = client
+        .simple_query(sql)
+        .await
+        .map_err(|e| format!("{e}"))?;
+
+    let result_sets = stream
+        .into_results()
+        .await
+        .map_err(|e| format!("{e}"))?;
+
+    // Use the first result set that has columns
+    for result_set in &result_sets {
+        if result_set.is_empty() {
+            continue;
+        }
+
+        let columns: Vec<String> = result_set[0]
+            .columns()
+            .iter()
+            .map(|c| c.name().to_string())
+            .collect();
+
+        if columns.is_empty() {
+            continue;
+        }
+
+        let rows: Vec<Vec<serde_json::Value>> = result_set
+            .iter()
+            .map(|row| {
+                columns
+                    .iter()
+                    .enumerate()
+                    .map(|(i, _)| row_value_to_json(row, i))
+                    .collect()
+            })
+            .collect();
+
+        return Ok(QueryResultData { columns, rows });
+    }
+
+    Ok(QueryResultData {
+        columns: vec![],
+        rows: vec![],
+    })
+}
+
+fn row_value_to_json(row: &tiberius::Row, idx: usize) -> serde_json::Value {
+    use serde_json::Value;
+
+    // Try common types in order of likelihood
+    if let Some(v) = row.try_get::<&str, _>(idx).ok().flatten() {
+        return Value::from(v);
+    }
+    if let Some(v) = row.try_get::<i32, _>(idx).ok().flatten() {
+        return Value::from(v);
+    }
+    if let Some(v) = row.try_get::<i64, _>(idx).ok().flatten() {
+        return Value::from(v);
+    }
+    if let Some(v) = row.try_get::<i16, _>(idx).ok().flatten() {
+        return Value::from(v);
+    }
+    if let Some(v) = row.try_get::<u8, _>(idx).ok().flatten() {
+        return Value::from(v);
+    }
+    if let Some(v) = row.try_get::<f64, _>(idx).ok().flatten() {
+        return Value::from(v);
+    }
+    if let Some(v) = row.try_get::<f32, _>(idx).ok().flatten() {
+        return Value::from(v);
+    }
+    if let Some(v) = row.try_get::<bool, _>(idx).ok().flatten() {
+        return Value::from(v);
+    }
+    if let Some(v) = row.try_get::<tiberius::numeric::Numeric, _>(idx).ok().flatten() {
+        return Value::from(v.to_string());
+    }
+    if let Some(v) = row.try_get::<&[u8], _>(idx).ok().flatten() {
+        let hex: String = v.iter().map(|b| format!("{b:02X}")).collect();
+        return Value::from(format!("0x{hex}"));
+    }
+
+    // For datetime and other types, use Debug formatting as fallback
+    Value::from(format!("{:?}", row.try_get::<&str, _>(idx)))
 }

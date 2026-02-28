@@ -3,7 +3,7 @@ mod profiler;
 mod settings;
 
 use db::ConnectionConfig;
-use profiler::{ProfilerCommand, spawn_profiler_task};
+use profiler::{ProfilerCommand, QueryResultData, spawn_profiler_task};
 use tauri::Manager;
 use tokio::sync::{mpsc, oneshot};
 
@@ -95,6 +95,26 @@ async fn stop_capture(
 }
 
 #[tauri::command]
+async fn execute_query(
+    state: tauri::State<'_, AppState>,
+    sql: String,
+) -> Result<QueryResultData, String> {
+    let (reply_tx, reply_rx) = oneshot::channel();
+    state
+        .tx
+        .send(ProfilerCommand::ExecuteQuery {
+            sql,
+            reply: reply_tx,
+        })
+        .await
+        .map_err(|e| format!("Internal error: {e}"))?;
+
+    reply_rx
+        .await
+        .map_err(|e| format!("Internal error: {e}"))?
+}
+
+#[tauri::command]
 async fn load_connection(
     app: tauri::AppHandle,
 ) -> Result<serde_json::Value, String> {
@@ -120,6 +140,7 @@ pub fn run() {
             disconnect_from_server,
             start_capture,
             stop_capture,
+            execute_query,
             load_connection,
         ])
         .run(tauri::generate_context!())

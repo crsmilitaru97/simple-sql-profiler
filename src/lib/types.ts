@@ -29,6 +29,11 @@ export interface QueryEvent {
   event_status: "completed";
 }
 
+export interface QueryResultData {
+  columns: string[];
+  rows: (string | number | boolean | null)[][];
+}
+
 export interface ProfilerStatus {
   connected: boolean;
   capturing: boolean;

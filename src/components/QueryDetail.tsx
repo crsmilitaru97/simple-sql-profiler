@@ -1,10 +1,17 @@
-import { createSignal, createEffect, onCleanup } from "solid-js";
-import type { QueryEvent } from "../lib/types.ts";
+import { invoke } from "@tauri-apps/api/core";
+import { createSignal, createEffect, onCleanup, For, Show } from "solid-js";
+import type { QueryEvent, QueryResultData } from "../lib/types.ts";
 
 interface Props {
   query: QueryEvent;
   onClose: () => void;
 }
+
+type RunState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: QueryResultData }
+  | { status: "error"; message: string };
 
 function SqlBlock(props: { text: string; label?: string; class?: string }) {
   const [copied, setCopied] = createSignal(false);
@@ -45,11 +52,62 @@ function SqlBlock(props: { text: string; label?: string; class?: string }) {
   );
 }
 
+function ResultsTable(props: { data: QueryResultData }) {
+  return (
+    <div>
+      <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 font-medium">
+        Results ({props.data.rows.length} row{props.data.rows.length !== 1 ? "s" : ""})
+      </div>
+      <div class="bg-slate-900/50 rounded-lg border border-slate-700/50 overflow-auto max-h-[300px]">
+        <Show
+          when={props.data.columns.length > 0}
+          fallback={
+            <div class="px-4 py-3 text-xs text-slate-500">
+              Query executed successfully. No result set returned.
+            </div>
+          }
+        >
+          <table class="w-full text-xs">
+            <thead class="sticky top-0">
+              <tr class="bg-slate-800 text-slate-400">
+                <For each={props.data.columns}>
+                  {(col) => (
+                    <th class="px-3 py-1.5 text-left font-semibold text-[10px] uppercase tracking-wider border-b border-slate-700 whitespace-nowrap">
+                      {col}
+                    </th>
+                  )}
+                </For>
+              </tr>
+            </thead>
+            <tbody>
+              <For each={props.data.rows}>
+                {(row, idx) => (
+                  <tr class={idx() % 2 === 0 ? "bg-slate-900/30" : "bg-slate-900/60"}>
+                    <For each={row}>
+                      {(cell) => (
+                        <td class="px-3 py-1 text-slate-300 font-mono text-[11px] whitespace-nowrap border-b border-slate-800/50">
+                          {cell === null ? <span class="text-slate-600 italic">NULL</span> : String(cell)}
+                        </td>
+                      )}
+                    </For>
+                  </tr>
+                )}
+              </For>
+            </tbody>
+          </table>
+        </Show>
+      </div>
+    </div>
+  );
+}
+
 export default function QueryDetail(props: Props) {
   const savedHeight = parseInt(localStorage.getItem("detail-panel-height") || "300", 10);
   const [height, setHeight] = createSignal(savedHeight);
   const [mounted, setMounted] = createSignal(false);
-  
+  const [runState, setRunState] = createSignal<RunState>({ status: "idle" });
+  const [showConfirm, setShowConfirm] = createSignal(false);
+
   let dragging = false;
   let startY = 0;
   let startH = 0;
@@ -99,6 +157,31 @@ export default function QueryDetail(props: Props) {
     return { time: isoStr, date: "-" };
   }
 
+  function handleRunClick() {
+    if (runState().status === "loading") return;
+    setShowConfirm(true);
+  }
+
+  async function executeQuery() {
+    setShowConfirm(false);
+    setRunState({ status: "loading" });
+    try {
+      const statement = props.query.current_statement || props.query.sql_text;
+      const db = props.query.database_name;
+      const sql = db ? `USE [${db}];\n${statement}` : statement;
+      const data = await invoke<QueryResultData>("execute_query", { sql });
+      setRunState({ status: "success", data });
+    } catch (e) {
+      setRunState({ status: "error", message: String(e) });
+    }
+  }
+
+  // Reset run state when query changes
+  createEffect(() => {
+    void props.query.id;
+    setRunState({ status: "idle" });
+  });
+
   createEffect(() => {
     // Entrance animation
     setMounted(false);
@@ -113,7 +196,7 @@ export default function QueryDetail(props: Props) {
       class={`relative border-t border-slate-700 bg-slate-800 flex flex-col shrink-0 select-text transition-all duration-200 ease-out ${
         !mounted() ? "translate-y-8 opacity-0" : "translate-y-0 opacity-100"
       }`}
-      style={{ 
+      style={{
         height: `${height()}px`
       }}
     >
@@ -123,6 +206,42 @@ export default function QueryDetail(props: Props) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
       />
+
+      {/* Confirm Dialog */}
+      <Show when={showConfirm()}>
+        <div class="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+          <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-lg shadow-2xl p-6">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-play text-amber-400 text-sm" />
+              </div>
+              <div>
+                <h3 class="text-sm font-semibold text-slate-100">Run query?</h3>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  This will execute the query on <span class="text-slate-200 font-medium">{props.query.database_name || "the connected server"}</span>
+                </p>
+              </div>
+            </div>
+            <pre class="text-[11px] font-mono text-slate-300 bg-slate-800/80 rounded p-3 mb-4 max-h-[120px] overflow-auto whitespace-pre-wrap break-words border border-slate-700/50">
+              {props.query.current_statement || props.query.sql_text}
+            </pre>
+            <div class="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowConfirm(false)}
+                class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void executeQuery()}
+                class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded transition-colors"
+              >
+                Run
+              </button>
+            </div>
+          </div>
+        </div>
+      </Show>
 
       {/* Header */}
       <div class="flex items-stretch border-b border-slate-700 bg-slate-800/50 shrink-0 h-[42px]">
@@ -200,6 +319,20 @@ export default function QueryDetail(props: Props) {
           </div>
         </div>
 
+        {/* Run & Close buttons */}
+        <button
+          type="button"
+          onClick={handleRunClick}
+          disabled={runState().status === "loading"}
+          class="text-slate-400 hover:text-emerald-400 w-12 h-full flex items-center justify-center hover:bg-slate-700/50 transition-all border-l border-slate-700/50 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Run query"
+        >
+          {runState().status === "loading" ? (
+            <i class="fa-solid fa-spinner fa-spin text-xs" />
+          ) : (
+            <i class="fa-solid fa-play text-xs" />
+          )}
+        </button>
         <button
           type="button"
           onClick={() => props.onClose()}
@@ -210,20 +343,36 @@ export default function QueryDetail(props: Props) {
         </button>
       </div>
 
-      {/* SQL Text */}
+      {/* SQL Text & Results */}
       <div class="flex-1 overflow-auto p-4 flex flex-col gap-6">
-        <SqlBlock 
-          text={props.query.current_statement || props.query.sql_text} 
+        <SqlBlock
+          text={props.query.current_statement || props.query.sql_text}
           label="Statement"
         />
-        
+
         {props.query.current_statement &&
           props.query.sql_text !== props.query.current_statement && (
-            <SqlBlock 
-              text={props.query.sql_text} 
+            <SqlBlock
+              text={props.query.sql_text}
               label="Full Batch"
             />
           )}
+
+        {/* Query Results */}
+        {runState().status === "error" && (
+          <div>
+            <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 font-medium">
+              Error
+            </div>
+            <div class="bg-red-950/30 rounded-lg p-4 border border-red-900/50 text-xs text-red-400 font-mono whitespace-pre-wrap break-words">
+              {(runState() as { status: "error"; message: string }).message}
+            </div>
+          </div>
+        )}
+
+        {runState().status === "success" && (
+          <ResultsTable data={(runState() as { status: "success"; data: QueryResultData }).data} />
+        )}
       </div>
     </div>
   );
