@@ -3,20 +3,22 @@ interface Props {
   capturing: boolean;
   queryCount: number;
   filterText: string;
-  autoScroll: boolean;
+  advancedFilterCount: number;
+  autoScroll: "on" | "off" | "smart";
   deduplicateRepeats: boolean;
   error: string | null;
   onStartCapture: () => void;
   onStopCapture: () => void;
   onClear: () => void;
   onFilterChange: (value: string) => void;
+  onOpenAdvancedFilter: () => void;
   onToggleAutoScroll: () => void;
   onToggleDeduplicateRepeats: () => void;
 }
 
 export default function Toolbar(props: Props) {
   const btnBase =
-    "flex items-center justify-center gap-1.5 w-24 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+    "flex items-center justify-center gap-1.5 px-3 min-w-[96px] py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed border border-transparent";
 
   return (
     <div class="flex flex-col bg-slate-800/60 border-b border-slate-700">
@@ -51,21 +53,39 @@ export default function Toolbar(props: Props) {
           </button>
         </div>
 
-        <div class="flex-1 mx-2 relative">
-          <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-500" />
-          <input
-            type="text"
-            value={props.filterText}
-            onInput={(e) => props.onFilterChange(e.currentTarget.value)}
-            placeholder="Filter queries..."
-            class="w-full pl-7 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
-          />
+        <div class="flex-1 mx-2 relative flex items-center gap-2">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-500" />
+            <input
+              type="text"
+              value={props.filterText}
+              onInput={(e) => props.onFilterChange(e.currentTarget.value)}
+              placeholder="Filter queries..."
+              class="w-full pl-7 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+            />
+          </div>
+
+          <button
+            onClick={props.onOpenAdvancedFilter}
+            class={`px-3 py-1.5 text-xs font-medium rounded border transition-all flex items-center gap-2 h-[30px] ${props.advancedFilterCount > 0
+              ? "bg-blue-600/20 text-blue-400 border-blue-500/40"
+              : "bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600 hover:text-slate-300"
+              }`}
+          >
+            <i class="fa-solid fa-sliders text-[10px]" />
+            Advanced
+            {props.advancedFilterCount > 0 && (
+              <span class="flex items-center justify-center bg-blue-500 text-white text-[9px] font-bold rounded-full w-4 h-4">
+                {props.advancedFilterCount}
+              </span>
+            )}
+          </button>
         </div>
 
         <button
           class={`${btnBase} ${props.deduplicateRepeats
-              ? "bg-blue-600/20 text-blue-400 border-blue-500/40"
-              : "bg-slate-700 text-slate-400"
+            ? "bg-blue-600/20 text-blue-400 border-blue-500/40"
+            : "bg-slate-700 text-slate-400"
             }`}
           onClick={props.onToggleDeduplicateRepeats}
           title="Hide consecutive repeated queries"
@@ -75,15 +95,21 @@ export default function Toolbar(props: Props) {
         </button>
 
         <button
-          class={`${btnBase} ${props.autoScroll
-              ? "bg-blue-600/20 text-blue-400 border-blue-500/40"
-              : "bg-slate-700 text-slate-400"
+          class={`${btnBase} ${props.autoScroll !== "off"
+            ? "bg-blue-600/20 text-blue-400 border-blue-500/40"
+            : "bg-slate-700 text-slate-400"
             }`}
           onClick={props.onToggleAutoScroll}
-          title="Auto-scroll to latest queries"
+          title={
+            props.autoScroll === "smart" ? "Smart auto-scroll (stops when viewing details)" :
+              props.autoScroll === "on" ? "Auto-scroll: On" :
+                "Auto-scroll: Off"
+          }
         >
-          <i class="fa-solid fa-arrow-down text-[10px]" />
-          Auto-scroll
+          {props.autoScroll === "smart" && <i class="fa-solid fa-arrow-down-short-wide text-[10px]" />}
+          {props.autoScroll === "on" && <i class="fa-solid fa-arrow-down text-[10px]" />}
+          {props.autoScroll === "off" && <i class="fa-solid fa-arrow-down text-[10px] opacity-50" />}
+          {props.autoScroll === "smart" ? "Smart Scroll" : "Auto-scroll"}
         </button>
       </div>
 

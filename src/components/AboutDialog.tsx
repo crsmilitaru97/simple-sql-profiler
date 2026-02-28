@@ -1,4 +1,5 @@
 import { open } from "@tauri-apps/plugin-shell";
+import { onCleanup, onMount } from "solid-js";
 import appIcon from "../../icon.png";
 
 type UpdateMessageTone = "info" | "success" | "error";
@@ -13,6 +14,16 @@ interface Props {
 }
 
 export default function AboutDialog(props: Props) {
+  onMount(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        props.onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
+  });
+
   const handleOpenRepo = async (e: MouseEvent) => {
     e.preventDefault();
     await open("https://github.com/crsmilitaru97/simple-sql-profiler");
@@ -26,7 +37,7 @@ export default function AboutDialog(props: Props) {
 
   return (
     <div class="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
-      <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-lg shadow-2xl p-8 text-center">
+      <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-8 text-center">
         <div class="flex items-center justify-center mx-auto mb-5">
           <img src={appIcon} alt="Simple SQL Profiler icon" class="w-14 h-14 object-contain" />
         </div>

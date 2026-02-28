@@ -1,5 +1,5 @@
-import { createSignal, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { createSignal, onCleanup, onMount } from "solid-js";
 import type { ConnectionConfig } from "../lib/types.ts";
 import Dropdown from "./Dropdown.tsx";
 
@@ -22,6 +22,14 @@ export default function ConnectionForm(props: Props) {
   const [connecting, setConnecting] = createSignal(false);
 
   onMount(async () => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only allow closing via escape if we are already connected
+      if (e.key === "Escape" && props.connected) {
+        props.onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
     try {
       const saved: any = await invoke("load_connection");
       setServerName(saved.server_name ?? "localhost");
@@ -35,6 +43,8 @@ export default function ConnectionForm(props: Props) {
     } catch {
       // Use defaults if no saved connection
     }
+
+    onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
   });
 
   async function handleSubmit(e: Event) {
@@ -62,7 +72,7 @@ export default function ConnectionForm(props: Props) {
     <div class="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
       <form
         onSubmit={handleSubmit}
-        class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-lg shadow-2xl p-6"
+        class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-6"
       >
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-lg font-semibold text-slate-100">Connect to SQL Server</h2>
@@ -70,10 +80,10 @@ export default function ConnectionForm(props: Props) {
             <button
               type="button"
               onClick={props.onClose}
-              class="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              class="text-slate-500 hover:text-slate-300 transition-colors"
               title="Close"
             >
-              <i class="fa-solid fa-xmark text-xs" />
+              <i class="fa-solid fa-xmark text-xl" />
             </button>
           )}
         </div>

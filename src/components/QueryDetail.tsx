@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { createSignal, createEffect, onCleanup, For, Show } from "solid-js";
+import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
 import type { QueryEvent, QueryResultData } from "../lib/types.ts";
 
 interface Props {
@@ -44,7 +44,7 @@ function SqlBlock(props: { text: string; label?: string; class?: string }) {
             </span>
           )}
         </button>
-        <pre class="text-xs font-mono text-slate-200 whitespace-pre-wrap break-words leading-relaxed selection:bg-blue-500/30">
+        <pre class="text-xs font-mono text-slate-200 whitespace-pre-wrap break-all leading-relaxed selection:bg-blue-500/30">
           {props.text}
         </pre>
       </div>
@@ -111,6 +111,7 @@ export default function QueryDetail(props: Props) {
   let dragging = false;
   let startY = 0;
   let startH = 0;
+  let contentRef: HTMLDivElement | undefined;
 
   function onPointerDown(e: PointerEvent) {
     dragging = true;
@@ -171,8 +172,14 @@ export default function QueryDetail(props: Props) {
       const sql = db ? `USE [${db}];\n${statement}` : statement;
       const data = await invoke<QueryResultData>("execute_query", { sql });
       setRunState({ status: "success", data });
+      requestAnimationFrame(() => {
+        if (contentRef) contentRef.scrollTo({ top: contentRef.scrollHeight, behavior: "smooth" });
+      });
     } catch (e) {
       setRunState({ status: "error", message: String(e) });
+      requestAnimationFrame(() => {
+        if (contentRef) contentRef.scrollTo({ top: contentRef.scrollHeight, behavior: "smooth" });
+      });
     }
   }
 
@@ -193,9 +200,8 @@ export default function QueryDetail(props: Props) {
 
   return (
     <div
-      class={`relative border-t border-slate-700 bg-slate-800 flex flex-col shrink-0 select-text transition-all duration-200 ease-out ${
-        !mounted() ? "translate-y-8 opacity-0" : "translate-y-0 opacity-100"
-      }`}
+      class={`relative border-t border-slate-700 bg-slate-800 flex flex-col shrink-0 select-text transition-all duration-200 ease-out ${!mounted() ? "translate-y-8 opacity-0" : "translate-y-0 opacity-100"
+        }`}
       style={{
         height: `${height()}px`
       }}
@@ -210,7 +216,7 @@ export default function QueryDetail(props: Props) {
       {/* Confirm Dialog */}
       <Show when={showConfirm()}>
         <div class="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
-          <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-lg shadow-2xl p-6">
+          <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-6">
             <div class="flex items-center gap-3 mb-3">
               <div class="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
                 <i class="fa-solid fa-play text-amber-400 text-sm" />
@@ -222,7 +228,7 @@ export default function QueryDetail(props: Props) {
                 </p>
               </div>
             </div>
-            <pre class="text-[11px] font-mono text-slate-300 bg-slate-800/80 rounded p-3 mb-4 max-h-[120px] overflow-auto whitespace-pre-wrap break-words border border-slate-700/50">
+            <pre class="text-[11px] font-mono text-slate-300 bg-slate-800/80 rounded p-3 mb-4 max-h-[120px] overflow-auto whitespace-pre-wrap break-all border border-slate-700/50">
               {props.query.current_statement || props.query.sql_text}
             </pre>
             <div class="flex gap-2 justify-end">
@@ -344,7 +350,7 @@ export default function QueryDetail(props: Props) {
       </div>
 
       {/* SQL Text & Results */}
-      <div class="flex-1 overflow-auto p-4 flex flex-col gap-6">
+      <div ref={contentRef} class="flex-1 overflow-auto p-4 flex flex-col gap-6">
         <SqlBlock
           text={props.query.current_statement || props.query.sql_text}
           label="Statement"

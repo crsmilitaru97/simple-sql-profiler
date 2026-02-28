@@ -1,4 +1,5 @@
-import { createSignal, For, onCleanup, onMount } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { Portal } from "solid-js/web";
 
 interface Option {
   value: string;
@@ -13,10 +14,23 @@ interface Props {
 
 export default function Dropdown(props: Props) {
   const [open, setOpen] = createSignal(false);
+  const [coords, setCoords] = createSignal({ top: 0, left: 0, width: 0 });
   let containerRef!: HTMLDivElement;
+  let triggerRef!: HTMLButtonElement;
 
   const selectedLabel = () =>
     props.options.find((o) => o.value === props.value)?.label ?? "";
+
+  const updateCoords = () => {
+    if (triggerRef) {
+      const rect = triggerRef.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    }
+  };
 
   function handleClickOutside(e: MouseEvent) {
     if (!containerRef.contains(e.target as Node)) {
@@ -24,8 +38,22 @@ export default function Dropdown(props: Props) {
     }
   }
 
-  onMount(() => document.addEventListener("mousedown", handleClickOutside));
-  onCleanup(() => document.removeEventListener("mousedown", handleClickOutside));
+  onMount(() => {
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("scroll", updateCoords, true);
+    window.addEventListener("resize", updateCoords);
+  });
+
+  onCleanup(() => {
+    document.removeEventListener("mousedown", handleClickOutside);
+    window.removeEventListener("scroll", updateCoords, true);
+    window.removeEventListener("resize", updateCoords);
+  });
+
+  function toggle() {
+    updateCoords();
+    setOpen((s) => !s);
+  }
 
   function select(value: string) {
     props.onChange(value);
@@ -40,7 +68,7 @@ export default function Dropdown(props: Props) {
 
     if (!open() && (e.key === "Enter" || e.key === " " || e.key === "ArrowDown")) {
       e.preventDefault();
-      setOpen(true);
+      toggle();
       return;
     }
 
@@ -64,10 +92,11 @@ export default function Dropdown(props: Props) {
   return (
     <div ref={containerRef} class="dropdown-container relative">
       <button
+        ref={triggerRef}
         type="button"
         class="dropdown-trigger"
         classList={{ "dropdown-trigger--open": open() }}
-        onClick={() => setOpen((s) => !s)}
+        onClick={toggle}
         onKeyDown={handleKeyDown}
       >
         <span class="truncate">{selectedLabel()}</span>
@@ -81,21 +110,31 @@ export default function Dropdown(props: Props) {
         </svg>
       </button>
 
-      {open() && (
-        <ul class="dropdown-menu">
-          <For each={props.options}>
-            {(option) => (
-              <li
-                class="dropdown-item"
-                classList={{ "dropdown-item--selected": option.value === props.value }}
-                onMouseDown={() => select(option.value)}
-              >
-                {option.label}
-              </li>
-            )}
-          </For>
-        </ul>
-      )}
+      <Show when={open()}>
+        <Portal>
+          <ul
+            class="dropdown-menu fixed"
+            style={{
+              top: `${coords().top}px`,
+              left: `${coords().left}px`,
+              width: `${coords().width}px`,
+              "z-index": 9999
+            }}
+          >
+            <For each={props.options}>
+              {(option) => (
+                <li
+                  class="dropdown-item"
+                  classList={{ "dropdown-item--selected": option.value === props.value }}
+                  onMouseDown={() => select(option.value)}
+                >
+                  {option.label}
+                </li>
+              )}
+            </For>
+          </ul>
+        </Portal>
+      </Show>
     </div>
   );
 }

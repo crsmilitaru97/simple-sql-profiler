@@ -4,7 +4,7 @@ import type { QueryEvent } from "../lib/types.ts";
 interface Props {
   queries: QueryEvent[];
   selectedId: string | null;
-  autoScroll: boolean;
+  autoScroll: "on" | "off" | "smart";
   connected: boolean;
   capturing: boolean;
   onSelect: (id: string | null) => void;
@@ -15,7 +15,11 @@ export default function QueryFeed(props: Props) {
 
   createEffect(() => {
     const len = props.queries.length;
-    if (len && props.autoScroll && containerRef) {
+    let shouldScroll = false;
+    if (props.autoScroll === "on") shouldScroll = true;
+    else if (props.autoScroll === "smart" && !props.selectedId) shouldScroll = true;
+
+    if (len && shouldScroll && containerRef) {
       requestAnimationFrame(() => {
         containerRef!.scrollTop = containerRef!.scrollHeight;
       });
@@ -103,17 +107,19 @@ export default function QueryFeed(props: Props) {
 
       {/* Rows */}
       {props.queries.length === 0 ? (
-        <div class="flex-1 flex flex-col items-center justify-center text-slate-600 gap-4">
-          <i class="fa-solid fa-database text-4xl opacity-20" />
-          <div class="flex flex-col items-center gap-1">
-            <span class="text-sm">No queries captured yet.</span>
-            <span class="text-[11px] opacity-60">
-              {!props.connected
-                ? "Connect to a server to begin."
-                : !props.capturing
-                  ? "Press Start to begin capturing events."
-                  : "Waiting for database activity..."}
-            </span>
+        <div class="flex-1 flex flex-col items-center justify-center text-slate-600">
+          <div class="px-6 py-5 rounded-xl border border-slate-800/70 bg-slate-900/60 shadow-lg shadow-slate-900/40 flex flex-col items-center gap-3 max-w-sm text-center">
+            <i class="fa-solid fa-database text-4xl opacity-25" />
+            <div class="flex flex-col items-center gap-1">
+              <span class="text-sm text-slate-200">No queries captured yet.</span>
+              <span class="text-[11px] opacity-70">
+                {!props.connected
+                  ? "Connect to a server to begin."
+                  : !props.capturing
+                    ? "Press Start to begin capturing events."
+                    : "Waiting for database activity..."}
+              </span>
+            </div>
           </div>
         </div>
       ) : (

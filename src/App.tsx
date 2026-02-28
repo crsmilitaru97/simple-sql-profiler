@@ -3,15 +3,17 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import AboutDialog from "./components/AboutDialog.tsx";
+import AdvancedFilterDialog from "./components/AdvancedFilterDialog.tsx";
 import ConnectionForm from "./components/ConnectionForm.tsx";
 import ContextMenu from "./components/ContextMenu.tsx";
 import QueryDetail from "./components/QueryDetail.tsx";
 import QueryFeed from "./components/QueryFeed.tsx";
 import TitleBar from "./components/TitleBar.tsx";
 import Toolbar from "./components/Toolbar.tsx";
+import { evaluateFilter, type AdvancedFilterCondition } from "./lib/advancedFilters.ts";
 import type { ConnectionConfig, ProfilerStatus, QueryEvent } from "./lib/types.ts";
 
 type UpdateMessageTone = "info" | "success" | "error";
@@ -27,6 +29,8 @@ interface UpdaterErrorDetails {
   configurationIssue: boolean;
   tone: UpdateMessageTone;
 }
+
+const MAX_QUERY_BUFFER = 5000;
 
 const MISSING_UPDATER_CONFIG_MESSAGE =
   "Updater is not configured yet. Set plugins.updater.endpoints and plugins.updater.pubkey in src-tauri/tauri.conf.json.";
@@ -47,12 +51,34 @@ export default function App() {
   const [showConnection, setShowConnection] = createSignal(true);
   const [showAbout, setShowAbout] = createSignal(false);
   const [appVersion, setAppVersion] = createSignal<string | null>(null);
-  const [autoScroll, setAutoScroll] = createSignal(localStorage.getItem("auto-scroll") !== "false");
+  const [autoScroll, setAutoScroll] = createSignal<"on" | "off" | "smart">(
+    (() => {
+      const val = localStorage.getItem("auto-scroll");
+      if (val === "on" || val === "off" || val === "smart") return val;
+      if (val === "false") return "off";
+      return "smart";
+    })()
+  );
   const [deduplicateRepeats, setDeduplicateRepeats] = createSignal(localStorage.getItem("deduplicate-repeats") !== "false");
   const [updateStatus, setUpdateStatus] = createSignal<UpdateStatus>({
     checking: false,
     message: null,
     tone: "info",
+  });
+  const [advancedFilters, setAdvancedFilters] = createSignal<AdvancedFilterCondition[]>(
+    (() => {
+      try {
+        const stored = localStorage.getItem("advanced-filters");
+        return stored ? JSON.parse(stored) : [];
+      } catch {
+        return [];
+      }
+    })()
+  );
+  const [showAdvancedFilter, setShowAdvancedFilter] = createSignal(false);
+
+  createEffect(() => {
+    localStorage.setItem("advanced-filters", JSON.stringify(advancedFilters()));
   });
 
   createEffect(() => {
@@ -65,18 +91,31 @@ export default function App() {
 
   const selectedQuery = () => queries.find((q) => q.id === selectedId()) ?? null;
 
-  const filteredQueries = () => {
+  const filteredQueries = createMemo(() => {
     const filter = filterText().toLowerCase();
-    let result: QueryEvent[] = filter
-      ? queries.filter(
-        (q) =>
-          q.sql_text.toLowerCase().includes(filter) ||
-          q.current_statement.toLowerCase().includes(filter) ||
-          q.database_name.toLowerCase().includes(filter) ||
-          q.login_name.toLowerCase().includes(filter) ||
-          q.program_name.toLowerCase().includes(filter)
-      )
-      : [...queries];
+    const advFilters = advancedFilters();
+
+    let result = queries.filter((q) => {
+      // Basic text search (OR across common fields)
+      if (filter) {
+        const matchesText =
+          (q.sql_text || "").toLowerCase().includes(filter) ||
+          (q.current_statement || "").toLowerCase().includes(filter) ||
+          (q.database_name || "").toLowerCase().includes(filter) ||
+          (q.login_name || "").toLowerCase().includes(filter) ||
+          (q.program_name || "").toLowerCase().includes(filter);
+
+        if (!matchesText) return false;
+      }
+
+      // Advanced filters (AND across all conditions)
+      if (advFilters.length > 0) {
+        const matchesAdvanced = advFilters.every(f => evaluateFilter(q, f));
+        if (!matchesAdvanced) return false;
+      }
+
+      return true;
+    });
 
     if (deduplicateRepeats()) {
       result = result.filter(
@@ -85,15 +124,19 @@ export default function App() {
     }
 
     return result;
-  };
+  });
 
   onMount(() => {
     let unlistenQuery: (() => void) | null = null;
     let unlistenStatus: (() => void) | null = null;
+    let updateTimeout: number | undefined;
 
     onCleanup(() => {
       unlistenQuery?.();
       unlistenStatus?.();
+      if (updateTimeout !== undefined) {
+        clearTimeout(updateTimeout);
+      }
     });
 
     void (async () => {
@@ -106,12 +149,14 @@ export default function App() {
 
       unlistenQuery = await listen<QueryEvent>("query-event", (event) => {
         const query = event.payload;
-        const existingIdx = queries.findIndex((q) => q.id === query.id);
-        if (existingIdx >= 0) {
-          setQueries(existingIdx, query);
-        } else {
-          setQueries(produce((draft) => draft.push(query)));
-        }
+        setQueries(
+          produce((draft) => {
+            draft.push(query);
+            if (draft.length > MAX_QUERY_BUFFER) {
+              draft.splice(0, draft.length - MAX_QUERY_BUFFER);
+            }
+          }),
+        );
       });
 
       unlistenStatus = await listen<ProfilerStatus>(
@@ -126,7 +171,9 @@ export default function App() {
         }
       );
 
-      void handleCheckForUpdates(false);
+      updateTimeout = window.setTimeout(() => {
+        void handleCheckForUpdates(false);
+      }, 5000);
     })();
   });
 
@@ -314,12 +361,21 @@ export default function App() {
           />
         )}
 
+        {showAdvancedFilter() && (
+          <AdvancedFilterDialog
+            filters={advancedFilters()}
+            onApply={setAdvancedFilters}
+            onClose={() => setShowAdvancedFilter(false)}
+          />
+        )}
+
         {/* Toolbar */}
         <Toolbar
           connected={status().connected}
           capturing={status().capturing}
           queryCount={queries.length}
           filterText={filterText()}
+          advancedFilterCount={advancedFilters().length}
           autoScroll={autoScroll()}
           deduplicateRepeats={deduplicateRepeats()}
           error={status().connected ? status().error : null}
@@ -327,29 +383,34 @@ export default function App() {
           onStopCapture={handleStopCapture}
           onClear={handleClear}
           onFilterChange={setFilterText}
-          onToggleAutoScroll={() => setAutoScroll((s) => !s)}
+          onOpenAdvancedFilter={() => setShowAdvancedFilter(true)}
+          onToggleAutoScroll={() => setAutoScroll((s) => s === "smart" ? "on" : s === "on" ? "off" : "smart")}
           onToggleDeduplicateRepeats={() => setDeduplicateRepeats((s) => !s)}
         />
 
-        {/* Main Content */}
-        <div class="flex-1 flex flex-col min-h-0">
-          <QueryFeed
-            queries={filteredQueries()}
-            selectedId={selectedId()}
-            autoScroll={autoScroll()}
-            connected={status().connected}
-            capturing={status().capturing}
-            onSelect={setSelectedId}
-          />
+        {/* Main Content Area */}
+        <div class="flex-1 flex flex-row min-h-0 relative">
+          {/* List and Details */}
+          <div class="flex-1 flex flex-col min-h-0 relative">
+            <QueryFeed
+              queries={filteredQueries()}
+              selectedId={selectedId()}
+              autoScroll={autoScroll()}
+              connected={status().connected}
+              capturing={status().capturing}
+              onSelect={setSelectedId}
+            />
 
-          <Show when={selectedQuery()} keyed>
-            {(query) => (
-              <QueryDetail
-                query={query}
-                onClose={() => setSelectedId(null)}
-              />
-            )}
-          </Show>
+            <Show when={selectedQuery()} keyed>
+              {(query) => (
+                <QueryDetail
+                  query={query}
+                  onClose={() => setSelectedId(null)}
+                />
+              )}
+            </Show>
+          </div>
+
         </div>
       </div>
       <ContextMenu />
