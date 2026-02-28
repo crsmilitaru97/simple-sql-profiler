@@ -12,14 +12,11 @@ export interface QueryEvent {
   id: string;
   session_id: number;
   start_time: string;
-  status: string;
-  command: string;
+  event_name: string;
   database_name: string;
-  wait_type: string | null;
-  wait_time: number;
   cpu_time: number;
   elapsed_time: number;
-  reads: number;
+  physical_reads: number;
   writes: number;
   logical_reads: number;
   row_count: number;
@@ -29,7 +26,7 @@ export interface QueryEvent {
   host_name: string;
   program_name: string;
   captured_at: string;
-  event_status: "running" | "completed";
+  event_status: "completed";
 }
 
 export interface ProfilerStatus {

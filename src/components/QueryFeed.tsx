@@ -102,12 +102,6 @@ export default function QueryFeed(props: Props) {
                 {query.database_name}
               </div>
               <div class="px-2 py-1.5 truncate font-mono text-[11px]">
-                <span
-                  class={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${query.event_status === "running"
-                    ? "bg-emerald-500"
-                    : "bg-slate-600"
-                    }`}
-                />
                 {truncateSql(query.current_statement || query.sql_text)}
               </div>
               <div class="px-2 py-1.5 text-right tabular-nums">

@@ -50,6 +50,8 @@ pub async fn connect(config: &ConnectionConfig) -> Result<SqlClient, String> {
         tib_config.trust_cert();
     }
 
+    tib_config.application_name("SimpleSQLProfiler");
+
     let tcp = if instance.is_some() {
         TcpStream::connect_named(&tib_config)
             .await

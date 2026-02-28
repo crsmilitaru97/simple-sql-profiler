@@ -139,6 +139,7 @@ export default function App() {
       await invoke("start_capture");
     } catch (e) {
       setStatus((s) => ({ ...s, error: String(e) }));
+      setShowConnection(true);
     }
   }
 

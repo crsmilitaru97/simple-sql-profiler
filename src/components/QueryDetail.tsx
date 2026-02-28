@@ -128,16 +128,10 @@ export default function QueryDetail(props: Props) {
       <div class="flex items-stretch border-b border-slate-700 bg-slate-800/50 shrink-0 h-[42px]">
         <div class="query-detail-header-scroll flex-1 min-w-0 overflow-x-auto overflow-y-hidden pr-2">
           <div class="flex items-stretch min-w-max h-full">
-            {/* Status & Session */}
+            {/* Event Type & Session */}
             <div class="flex items-center gap-3 px-4 border-r border-slate-700/50">
-              <span
-                class={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
-                  props.query.event_status === "running"
-                    ? "bg-emerald-500/20 text-emerald-400"
-                    : "bg-slate-700 text-slate-400"
-                }`}
-              >
-                {props.query.event_status}
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-700 text-slate-400">
+                {props.query.event_name === "rpc_completed" ? "RPC" : "BATCH"}
               </span>
               <div class="flex flex-col justify-center">
                 <span class="text-[11px] font-semibold text-slate-100 tabular-nums">#{props.query.session_id}</span>
@@ -145,13 +139,10 @@ export default function QueryDetail(props: Props) {
               </div>
             </div>
 
-            {/* Command & DB */}
+            {/* DB */}
             <div class="flex flex-col justify-center px-4 border-r border-slate-700/50 min-w-max">
-              <div class="flex items-center gap-1.5">
-                <span class="text-[11px] font-semibold text-slate-100">{props.query.command}</span>
-                <span class="text-[11px] text-slate-400">{props.query.database_name}</span>
-              </div>
-              <span class="text-[9px] text-slate-500 uppercase tracking-tighter">Target</span>
+              <span class="text-[11px] font-semibold text-slate-100">{props.query.database_name}</span>
+              <span class="text-[9px] text-slate-500 uppercase tracking-tighter">Database</span>
             </div>
 
             {/* Environment */}
@@ -189,7 +180,7 @@ export default function QueryDetail(props: Props) {
                 <span class="text-[9px] text-slate-500 uppercase tracking-wider">Reads</span>
               </div>
               <div class="flex flex-col items-center justify-center px-4 min-w-[70px]">
-                <span class="text-[11px] font-bold text-slate-100 tabular-nums">{props.query.reads.toLocaleString()}</span>
+                <span class="text-[11px] font-bold text-slate-100 tabular-nums">{props.query.physical_reads.toLocaleString()}</span>
                 <span class="text-[9px] text-slate-500 uppercase tracking-wider">Physical</span>
               </div>
               <div class="flex flex-col items-center justify-center px-4 min-w-[60px]">
@@ -200,14 +191,6 @@ export default function QueryDetail(props: Props) {
                 <span class="text-[11px] font-bold text-slate-100 tabular-nums">{props.query.row_count.toLocaleString()}</span>
                 <span class="text-[9px] text-slate-500 uppercase tracking-wider">Rows</span>
               </div>
-              {props.query.wait_type && (
-                <div class="flex flex-col items-center justify-center px-4 min-w-[80px] bg-amber-500/5">
-                  <span class="text-[11px] font-bold text-amber-400 tabular-nums">{props.query.wait_type}</span>
-                  <span class="text-[9px] text-amber-500 uppercase tracking-wider truncate max-w-[70px]">
-                    Wait {formatDuration(props.query.wait_time)}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
         </div>
