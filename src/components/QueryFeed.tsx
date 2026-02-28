@@ -14,7 +14,8 @@ export default function QueryFeed(props: Props) {
   let containerRef: HTMLDivElement | undefined;
 
   createEffect(() => {
-    if (props.autoScroll && containerRef) {
+    const len = props.queries.length;
+    if (len && props.autoScroll && containerRef) {
       requestAnimationFrame(() => {
         containerRef!.scrollTop = containerRef!.scrollHeight;
       });

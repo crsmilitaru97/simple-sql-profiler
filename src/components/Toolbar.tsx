@@ -4,12 +4,14 @@ interface Props {
   queryCount: number;
   filterText: string;
   autoScroll: boolean;
+  deduplicateRepeats: boolean;
   error: string | null;
   onStartCapture: () => void;
   onStopCapture: () => void;
   onClear: () => void;
   onFilterChange: (value: string) => void;
   onToggleAutoScroll: () => void;
+  onToggleDeduplicateRepeats: () => void;
 }
 
 export default function Toolbar(props: Props) {
@@ -59,6 +61,18 @@ export default function Toolbar(props: Props) {
             class="w-full pl-7 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
           />
         </div>
+
+        <button
+          class={`${btnBase} ${props.deduplicateRepeats
+              ? "bg-blue-600/20 text-blue-400 border-blue-500/40"
+              : "bg-slate-700 text-slate-400"
+            }`}
+          onClick={props.onToggleDeduplicateRepeats}
+          title="Hide consecutive repeated queries"
+        >
+          <i class="fa-solid fa-filter text-[10px]" />
+          Deduplicate
+        </button>
 
         <button
           class={`${btnBase} ${props.autoScroll

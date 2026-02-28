@@ -47,6 +47,7 @@ export default function App() {
   const [showAbout, setShowAbout] = createSignal(false);
   const [appVersion, setAppVersion] = createSignal<string | null>(null);
   const [autoScroll, setAutoScroll] = createSignal(localStorage.getItem("auto-scroll") !== "false");
+  const [deduplicateRepeats, setDeduplicateRepeats] = createSignal(localStorage.getItem("deduplicate-repeats") !== "false");
   const [updateStatus, setUpdateStatus] = createSignal<UpdateStatus>({
     checking: false,
     message: null,
@@ -57,19 +58,32 @@ export default function App() {
     localStorage.setItem("auto-scroll", String(autoScroll()));
   });
 
+  createEffect(() => {
+    localStorage.setItem("deduplicate-repeats", String(deduplicateRepeats()));
+  });
+
   const selectedQuery = () => queries.find((q) => q.id === selectedId()) ?? null;
 
   const filteredQueries = () => {
     const filter = filterText().toLowerCase();
-    if (!filter) return queries;
-    return queries.filter(
-      (q) =>
-        q.sql_text.toLowerCase().includes(filter) ||
-        q.current_statement.toLowerCase().includes(filter) ||
-        q.database_name.toLowerCase().includes(filter) ||
-        q.login_name.toLowerCase().includes(filter) ||
-        q.program_name.toLowerCase().includes(filter)
-    );
+    let result: QueryEvent[] = filter
+      ? queries.filter(
+          (q) =>
+            q.sql_text.toLowerCase().includes(filter) ||
+            q.current_statement.toLowerCase().includes(filter) ||
+            q.database_name.toLowerCase().includes(filter) ||
+            q.login_name.toLowerCase().includes(filter) ||
+            q.program_name.toLowerCase().includes(filter)
+        )
+      : [...queries];
+
+    if (deduplicateRepeats()) {
+      result = result.filter(
+        (q, i, arr) => i === 0 || q.sql_text !== arr[i - 1].sql_text
+      );
+    }
+
+    return result;
   };
 
   onMount(() => {
@@ -306,12 +320,14 @@ export default function App() {
           queryCount={queries.length}
           filterText={filterText()}
           autoScroll={autoScroll()}
+          deduplicateRepeats={deduplicateRepeats()}
           error={status().connected ? status().error : null}
           onStartCapture={handleStartCapture}
           onStopCapture={handleStopCapture}
           onClear={handleClear}
           onFilterChange={setFilterText}
           onToggleAutoScroll={() => setAutoScroll((s) => !s)}
+          onToggleDeduplicateRepeats={() => setDeduplicateRepeats((s) => !s)}
         />
 
         {/* Main Content */}
