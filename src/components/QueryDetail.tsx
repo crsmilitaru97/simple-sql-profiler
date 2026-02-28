@@ -79,6 +79,26 @@ export default function QueryDetail(props: Props) {
     return `${(ms / 60000).toFixed(1)}m`;
   }
 
+  function formatStartTimeParts(isoStr: string): { time: string; date: string } {
+    if (!isoStr) return { time: "-", date: "-" };
+
+    const isoMatch = isoStr.match(
+      /^(\d{4}-\d{2}-\d{2})[T\s](\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?)/
+    );
+    if (isoMatch) {
+      return { date: isoMatch[1], time: isoMatch[2] };
+    }
+
+    const d = new Date(isoStr);
+    if (!Number.isNaN(d.getTime())) {
+      const date = d.toLocaleDateString("en-CA");
+      const time = d.toLocaleTimeString("en-US", { hour12: false, fractionalSecondDigits: 3 });
+      return { date, time };
+    }
+
+    return { time: isoStr, date: "-" };
+  }
+
   createEffect(() => {
     // Entrance animation
     setMounted(false);
@@ -106,84 +126,90 @@ export default function QueryDetail(props: Props) {
 
       {/* Header */}
       <div class="flex items-stretch border-b border-slate-700 bg-slate-800/50 shrink-0 h-[42px]">
-        {/* Status & Session */}
-        <div class="flex items-center gap-3 px-4 border-r border-slate-700/50">
-          <span
-            class={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
-              props.query.event_status === "running"
-                ? "bg-emerald-500/20 text-emerald-400"
-                : "bg-slate-700 text-slate-400"
-            }`}
-          >
-            {props.query.event_status}
-          </span>
-          <div class="flex flex-col justify-center">
-            <span class="text-[11px] font-semibold text-slate-100 tabular-nums">#{props.query.session_id}</span>
-            <span class="text-[9px] text-slate-500 uppercase tracking-tighter">Session</span>
-          </div>
-        </div>
+        <div class="query-detail-header-scroll flex-1 min-w-0 overflow-x-auto overflow-y-hidden pr-2">
+          <div class="flex items-stretch min-w-max h-full">
+            {/* Status & Session */}
+            <div class="flex items-center gap-3 px-4 border-r border-slate-700/50">
+              <span
+                class={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                  props.query.event_status === "running"
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : "bg-slate-700 text-slate-400"
+                }`}
+              >
+                {props.query.event_status}
+              </span>
+              <div class="flex flex-col justify-center">
+                <span class="text-[11px] font-semibold text-slate-100 tabular-nums">#{props.query.session_id}</span>
+                <span class="text-[9px] text-slate-500 uppercase tracking-tighter">Session</span>
+              </div>
+            </div>
 
-        {/* Command & DB */}
-        <div class="flex flex-col justify-center px-4 border-r border-slate-700/50 min-w-max">
-          <div class="flex items-center gap-1.5">
-            <span class="text-[11px] font-semibold text-slate-100">{props.query.command}</span>
-            <span class="text-[11px] text-slate-400">{props.query.database_name}</span>
-          </div>
-          <span class="text-[9px] text-slate-500 uppercase tracking-tighter">Target</span>
-        </div>
+            {/* Command & DB */}
+            <div class="flex flex-col justify-center px-4 border-r border-slate-700/50 min-w-max">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-semibold text-slate-100">{props.query.command}</span>
+                <span class="text-[11px] text-slate-400">{props.query.database_name}</span>
+              </div>
+              <span class="text-[9px] text-slate-500 uppercase tracking-tighter">Target</span>
+            </div>
 
-        {/* Environment */}
-        <div class="flex flex-col justify-center px-4 border-r border-slate-700/50 min-w-max">
-          <span class="text-[11px] font-medium text-slate-300 leading-tight">
-            {props.query.login_name}<span class="text-slate-500">@</span>{props.query.host_name}
-          </span>
-          <span class="text-[9px] text-slate-500 truncate max-w-[120px]" title={props.query.program_name}>
-            {props.query.program_name}
-          </span>
-        </div>
-
-        {/* Timestamp */}
-        <div class="flex flex-col justify-center px-4 border-r border-slate-700/50 min-w-max">
-          <span class="text-[11px] font-medium text-slate-400 tabular-nums leading-tight">
-            {props.query.start_time.split(' ')[1] || props.query.start_time}
-          </span>
-          <span class="text-[9px] text-slate-500 uppercase tracking-tighter">Started</span>
-        </div>
-
-        {/* Stats */}
-        <div class="flex items-stretch ml-auto divide-x divide-slate-700/50 border-l border-slate-700/50">
-          <div class="flex flex-col items-center justify-center px-4 min-w-[70px]">
-            <span class="text-[11px] font-bold text-slate-100 tabular-nums">{formatDuration(props.query.elapsed_time)}</span>
-            <span class="text-[9px] text-slate-500 uppercase tracking-wider">Duration</span>
-          </div>
-          <div class="flex flex-col items-center justify-center px-4 min-w-[60px]">
-            <span class="text-[11px] font-bold text-slate-100 tabular-nums">{formatDuration(props.query.cpu_time)}</span>
-            <span class="text-[9px] text-slate-500 uppercase tracking-wider">CPU</span>
-          </div>
-          <div class="flex flex-col items-center justify-center px-4 min-w-[70px]">
-            <span class="text-[11px] font-bold text-slate-100 tabular-nums">{props.query.logical_reads.toLocaleString()}</span>
-            <span class="text-[9px] text-slate-500 uppercase tracking-wider">Reads</span>
-          </div>
-          <div class="flex flex-col items-center justify-center px-4 min-w-[70px]">
-            <span class="text-[11px] font-bold text-slate-100 tabular-nums">{props.query.reads.toLocaleString()}</span>
-            <span class="text-[9px] text-slate-500 uppercase tracking-wider">Physical</span>
-          </div>
-          <div class="flex flex-col items-center justify-center px-4 min-w-[60px]">
-            <span class="text-[11px] font-bold text-slate-100 tabular-nums">{props.query.writes.toLocaleString()}</span>
-            <span class="text-[9px] text-slate-500 uppercase tracking-wider">Writes</span>
-          </div>
-          <div class="flex flex-col items-center justify-center px-4 min-w-[60px]">
-            <span class="text-[11px] font-bold text-slate-100 tabular-nums">{props.query.row_count.toLocaleString()}</span>
-            <span class="text-[9px] text-slate-500 uppercase tracking-wider">Rows</span>
-          </div>
-          {props.query.wait_type && (
-            <div class="flex flex-col items-center justify-center px-4 min-w-[80px] bg-amber-500/5">
-              <span class="text-[11px] font-bold text-amber-400 tabular-nums">{props.query.wait_type}</span>
-              <span class="text-[9px] text-amber-500 uppercase tracking-wider truncate max-w-[70px]">
-                Wait {formatDuration(props.query.wait_time)}
+            {/* Environment */}
+            <div class="flex flex-col justify-center px-4 border-r border-slate-700/50 min-w-max">
+              <span class="text-[11px] font-medium text-slate-300 leading-tight">
+                {props.query.login_name}<span class="text-slate-500">@</span>{props.query.host_name}
+              </span>
+              <span class="text-[9px] text-slate-500 truncate max-w-[120px]" title={props.query.program_name}>
+                {props.query.program_name}
               </span>
             </div>
-          )}
+
+            {/* Timestamp */}
+            <div class="flex flex-col justify-center px-4 border-r border-slate-700/50 min-w-max">
+              <span class="text-[11px] font-medium text-slate-300 tabular-nums leading-tight">
+                {formatStartTimeParts(props.query.start_time).time}
+              </span>
+              <span class="text-[9px] text-slate-500 tabular-nums leading-tight">
+                {formatStartTimeParts(props.query.start_time).date}
+              </span>
+            </div>
+
+            {/* Stats */}
+            <div class="flex items-stretch divide-x divide-slate-700/50 border-l border-r border-slate-700/50">
+              <div class="flex flex-col items-center justify-center px-4 min-w-[70px]">
+                <span class="text-[11px] font-bold text-slate-100 tabular-nums">{formatDuration(props.query.elapsed_time)}</span>
+                <span class="text-[9px] text-slate-500 uppercase tracking-wider">Duration</span>
+              </div>
+              <div class="flex flex-col items-center justify-center px-4 min-w-[60px]">
+                <span class="text-[11px] font-bold text-slate-100 tabular-nums">{formatDuration(props.query.cpu_time)}</span>
+                <span class="text-[9px] text-slate-500 uppercase tracking-wider">CPU</span>
+              </div>
+              <div class="flex flex-col items-center justify-center px-4 min-w-[70px]">
+                <span class="text-[11px] font-bold text-slate-100 tabular-nums">{props.query.logical_reads.toLocaleString()}</span>
+                <span class="text-[9px] text-slate-500 uppercase tracking-wider">Reads</span>
+              </div>
+              <div class="flex flex-col items-center justify-center px-4 min-w-[70px]">
+                <span class="text-[11px] font-bold text-slate-100 tabular-nums">{props.query.reads.toLocaleString()}</span>
+                <span class="text-[9px] text-slate-500 uppercase tracking-wider">Physical</span>
+              </div>
+              <div class="flex flex-col items-center justify-center px-4 min-w-[60px]">
+                <span class="text-[11px] font-bold text-slate-100 tabular-nums">{props.query.writes.toLocaleString()}</span>
+                <span class="text-[9px] text-slate-500 uppercase tracking-wider">Writes</span>
+              </div>
+              <div class="flex flex-col items-center justify-center px-4 min-w-[60px]">
+                <span class="text-[11px] font-bold text-slate-100 tabular-nums">{props.query.row_count.toLocaleString()}</span>
+                <span class="text-[9px] text-slate-500 uppercase tracking-wider">Rows</span>
+              </div>
+              {props.query.wait_type && (
+                <div class="flex flex-col items-center justify-center px-4 min-w-[80px] bg-amber-500/5">
+                  <span class="text-[11px] font-bold text-amber-400 tabular-nums">{props.query.wait_type}</span>
+                  <span class="text-[9px] text-amber-500 uppercase tracking-wider truncate max-w-[70px]">
+                    Wait {formatDuration(props.query.wait_time)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <button

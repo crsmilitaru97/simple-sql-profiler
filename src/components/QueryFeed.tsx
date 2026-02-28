@@ -28,13 +28,19 @@ export default function QueryFeed(props: Props) {
   }
 
   function formatTime(isoStr: string): string {
-    if (!isoStr) return "";
-    try {
-      const d = new Date(isoStr);
-      return d.toLocaleTimeString("en-US", { hour12: false, fractionalSecondDigits: 3 });
-    } catch {
-      return isoStr;
+    if (!isoStr) return "-";
+
+    const match = isoStr.match(/(?:T|\s)(\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?)/);
+    if (match?.[1]) {
+      return match[1];
     }
+
+    const d = new Date(isoStr);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleTimeString("en-US", { hour12: false });
+    }
+
+    return isoStr;
   }
 
   function truncateSql(sql: string, maxLen = 120): string {

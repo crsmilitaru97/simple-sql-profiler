@@ -5,6 +5,7 @@ type UpdateMessageTone = "info" | "success" | "error";
 
 interface Props {
   onClose: () => void;
+  version: string | null;
   onCheckForUpdates: () => void | Promise<void>;
   checkingForUpdates: boolean;
   updateMessage: string | null;
@@ -34,6 +35,7 @@ export default function AboutDialog(props: Props) {
         <p class="text-slate-400 text-sm mb-5">
           A lightweight, modern SQL Server Profiler alternative.
         </p>
+        <p class="text-slate-500 text-xs mb-5">Version {props.version ?? "unknown"}</p>
 
         <div
           class="space-y-3"

@@ -1,8 +1,10 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import appIcon from "../../icon.png";
 
 interface Props {
   onToggleConnection: () => void;
   onShowAbout: () => void;
+  connected: boolean;
   disabled?: boolean;
   aboutDisabled?: boolean;
 }
@@ -14,7 +16,12 @@ export default function TitleBar(props: Props) {
     <div class="titlebar">
       <div data-tauri-drag-region class="titlebar-drag">
         <span data-tauri-drag-region class="titlebar-title">
-          <i data-tauri-drag-region class="fa-solid fa-database" />
+          <img
+            data-tauri-drag-region
+            src={appIcon}
+            alt="Simple SQL Profiler"
+            class="w-3 h-3 object-contain"
+          />
           Simple SQL Profiler
         </span>
       </div>
@@ -25,8 +32,8 @@ export default function TitleBar(props: Props) {
           onClick={props.onToggleConnection}
           disabled={props.disabled}
         >
-          <i class="fa-solid fa-plug text-[10px]" />
-          Connection
+          <i class={`fa-solid fa-plug text-[10px] ${props.connected ? "text-emerald-400" : "text-rose-400"}`} />
+          {props.connected ? "Connected" : "Disconnected"}
         </button>
         <div class="w-px h-3.5 bg-slate-700 mx-1" />
 

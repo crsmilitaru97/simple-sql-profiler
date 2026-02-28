@@ -1,7 +1,8 @@
-import { createSignal, createEffect, onMount, onCleanup } from "solid-js";
+import { createSignal, createEffect, onMount, onCleanup, Show } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import type { QueryEvent, ProfilerStatus, ConnectionConfig } from "./lib/types.ts";
@@ -44,6 +45,7 @@ export default function App() {
   const [filterText, setFilterText] = createSignal("");
   const [showConnection, setShowConnection] = createSignal(true);
   const [showAbout, setShowAbout] = createSignal(false);
+  const [appVersion, setAppVersion] = createSignal<string | null>(null);
   const [autoScroll, setAutoScroll] = createSignal(localStorage.getItem("auto-scroll") !== "false");
   const [updateStatus, setUpdateStatus] = createSignal<UpdateStatus>({
     checking: false,
@@ -70,33 +72,47 @@ export default function App() {
     );
   };
 
-  onMount(async () => {
-    const unlistenQuery = await listen<QueryEvent>("query-event", (event) => {
-      const query = event.payload;
-      const existingIdx = queries.findIndex((q) => q.id === query.id);
-      if (existingIdx >= 0) {
-        setQueries(existingIdx, query);
-      } else {
-        setQueries(produce((draft) => draft.push(query)));
-      }
-    });
-
-    const unlistenStatus = await listen<ProfilerStatus>(
-      "profiler-status",
-      (event) => {
-        setStatus(event.payload);
-        if (event.payload.connected) {
-          setShowConnection(false);
-        }
-      }
-    );
+  onMount(() => {
+    let unlistenQuery: (() => void) | null = null;
+    let unlistenStatus: (() => void) | null = null;
 
     onCleanup(() => {
-      unlistenQuery();
-      unlistenStatus();
+      unlistenQuery?.();
+      unlistenStatus?.();
     });
 
-    void handleCheckForUpdates(false);
+    void (async () => {
+      try {
+        setAppVersion(await getVersion());
+      } catch (error) {
+        console.error("Failed to read app version:", error);
+        setAppVersion(null);
+      }
+
+      unlistenQuery = await listen<QueryEvent>("query-event", (event) => {
+        const query = event.payload;
+        const existingIdx = queries.findIndex((q) => q.id === query.id);
+        if (existingIdx >= 0) {
+          setQueries(existingIdx, query);
+        } else {
+          setQueries(produce((draft) => draft.push(query)));
+        }
+      });
+
+      unlistenStatus = await listen<ProfilerStatus>(
+        "profiler-status",
+        (event) => {
+          setStatus(event.payload);
+          if (event.payload.connected) {
+            setShowConnection(false);
+          } else if (event.payload.capturing) {
+            void handleStopCapture();
+          }
+        }
+      );
+
+      void handleCheckForUpdates(false);
+    })();
   });
 
   async function handleConnect(config: ConnectionConfig, rememberPassword: boolean) {
@@ -255,6 +271,7 @@ export default function App() {
       <TitleBar
         onToggleConnection={() => setShowConnection((s) => !s)}
         onShowAbout={() => setShowAbout(true)}
+        connected={status().connected}
         disabled={showConnection()}
         aboutDisabled={showAbout()}
       />
@@ -273,6 +290,7 @@ export default function App() {
         {showAbout() && (
           <AboutDialog
             onClose={() => setShowAbout(false)}
+            version={appVersion()}
             onCheckForUpdates={() => handleCheckForUpdates(true)}
             checkingForUpdates={updateStatus().checking}
             updateMessage={updateStatus().message}
@@ -305,12 +323,14 @@ export default function App() {
             onSelect={(id) => setSelectedId(id === selectedId() ? null : id)}
           />
 
-          {selectedQuery() && (
-            <QueryDetail
-              query={selectedQuery()!}
-              onClose={() => setSelectedId(null)}
-            />
-          )}
+          <Show when={selectedQuery()} keyed>
+            {(query) => (
+              <QueryDetail
+                query={query}
+                onClose={() => setSelectedId(null)}
+              />
+            )}
+          </Show>
         </div>
       </div>
     </div>

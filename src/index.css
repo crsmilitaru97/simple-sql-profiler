@@ -159,6 +159,28 @@ input[type="checkbox"].custom-checkbox:checked::after {
   @apply bg-blue-600/30 text-blue-300;
 }
 
+.query-detail-header-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(71 85 105 / 0.55) transparent;
+}
+
+.query-detail-header-scroll::-webkit-scrollbar {
+  height: 3px;
+}
+
+.query-detail-header-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.query-detail-header-scroll::-webkit-scrollbar-thumb {
+  background: rgb(71 85 105 / 0.55);
+  border-radius: 999px;
+}
+
+.query-detail-header-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(100 116 139 / 0.75);
+}
+
 /* --- Scrollbars --- */
 ::-webkit-scrollbar {
   @apply w-2 h-2;
