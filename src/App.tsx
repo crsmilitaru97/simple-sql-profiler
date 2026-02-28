@@ -283,7 +283,7 @@ export default function App() {
           <ConnectionForm
             onConnect={handleConnect}
             onClose={() => status().connected && setShowConnection(false)}
-            error={status().error}
+            error={!status().connected ? status().error : null}
             connected={status().connected}
           />
         )}
@@ -306,6 +306,7 @@ export default function App() {
           queryCount={queries.length}
           filterText={filterText()}
           autoScroll={autoScroll()}
+          error={status().connected ? status().error : null}
           onStartCapture={handleStartCapture}
           onStopCapture={handleStopCapture}
           onClear={handleClear}

@@ -131,7 +131,12 @@ export default function QueryDetail(props: Props) {
             {/* Event Type & Session */}
             <div class="flex items-center gap-3 px-4 border-r border-slate-700/50">
               <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-700 text-slate-400">
-                {props.query.event_name === "rpc_completed" ? "RPC" : "BATCH"}
+                {props.query.event_name === "rpc_completed"
+                  ? "RPC"
+                  : props.query.event_name === "sp_statement_completed" ||
+                    props.query.event_name === "sql_statement_completed"
+                    ? "STMT"
+                    : "BATCH"}
               </span>
               <div class="flex flex-col justify-center">
                 <span class="text-[11px] font-semibold text-slate-100 tabular-nums">#{props.query.session_id}</span>
