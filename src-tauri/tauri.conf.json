@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+  "$schema": "https://schema.tauri.app/config/2",
   "productName": "Simple SQL Profiler",
   "version": "0.1.0",
   "identifier": "com.simple-sql-profiler.app",
@@ -17,6 +17,8 @@
         "height": 800,
         "minWidth": 900,
         "minHeight": 600,
+        "visible": false,
+        "backgroundColor": "#0f172a",
         "decorations": false
       }
     ],

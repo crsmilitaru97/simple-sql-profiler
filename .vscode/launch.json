@@ -16,6 +16,7 @@
           "kind": "bin"
         },
         "env": {
+          "PATH": "${env:USERPROFILE}\\.cargo\\bin;${env:PATH}",
           "CARGO_TARGET_DIR": "C:/tmp/sql-profiler-target",
           "CARGO_INCREMENTAL": "0"
         }
@@ -23,6 +24,7 @@
       "args": [],
       "cwd": "${workspaceFolder}",
       "env": {
+        "PATH": "${env:USERPROFILE}\\.cargo\\bin;${env:PATH}",
         "CARGO_TARGET_DIR": "C:/tmp/sql-profiler-target",
         "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS": "--remote-debugging-port=9222"
       },
