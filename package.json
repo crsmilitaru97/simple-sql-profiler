@@ -1,8 +1,16 @@
 {
   "name": "simple-sql-profiler",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0",
+  "displayName": "Simple SQL Profiler",
+  "description": "Fast, lightweight, and modern desktop SQL Profiler",
+  "author": "Cristian Militaru",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/crsxmilitaru/simple-sql-profiler"
+  },
   "type": "module",
+  "icon": "icon.png",
   "scripts": {
     "dev": "tauri dev",
     "dev:vite": "vite",
